@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { z } from "zod"
-import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -28,32 +27,31 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-interface AddRegisterUserModalProps {
-  onAddUser?: (user: RegisterUserItem) => void
-  trigger?: React.ReactNode
+interface EditRegisterUserModalProps {
+  user: RegisterUserItem
+  onSave?: (user: RegisterUserItem) => void
 }
 
-const emptyForm: FormData = {
-  name: "",
-  email: "",
-  phone: "",
-  message: "",
-}
-
-export function AddRegisterUserModal({
-  onAddUser,
-  trigger,
-}: AddRegisterUserModalProps) {
+export function EditRegisterUserModal({
+  user,
+  onSave,
+}: EditRegisterUserModalProps) {
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<FormData>(emptyForm)
+  const [form, setForm] = useState<FormData>({
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? "",
+    message: user.message ?? "",
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const generateId = () => {
-    return `RU-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-  }
-
   const resetForm = () => {
-    setForm(emptyForm)
+    setForm({
+      name: user.name,
+      email: user.email,
+      phone: user.phone ?? "",
+      message: user.message ?? "",
+    })
     setErrors({})
   }
 
@@ -62,15 +60,10 @@ export function AddRegisterUserModal({
 
     try {
       const validated = formSchema.parse(form)
-      const newUser: RegisterUserItem = {
-        id: generateId(),
-        ...validated,
-        createdAt: new Date().toISOString(),
-      }
+      const updated: RegisterUserItem = { ...user, ...validated }
 
-      onAddUser?.(newUser)
-      toast.success(`Added registration for "${newUser.name}"`)
-      resetForm()
+      onSave?.(updated)
+      setErrors({})
       setOpen(false)
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -91,28 +84,28 @@ export function AddRegisterUserModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger || (
-          <Button size="sm" className="cursor-pointer">
-            <Plus className="size-4" />
-            Add Customer
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="cursor-pointer w-full justify-start"
+        >
+          <Pencil className="mr-2 size-4" />
+          Edit Registration
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-131.25">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Add Customer Registration</DialogTitle>
+          <DialogTitle>Edit Registration</DialogTitle>
           <DialogDescription>
-            Register a new customer who needs consultation. Fill in the details
-            below.
+            Update information for &quot;{user.name}&quot;.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="edit-name">Name *</Label>
               <Input
-                id="name"
-                placeholder="Nguyen Van A"
+                id="edit-name"
                 value={form.name}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, name: e.target.value }))
@@ -124,11 +117,10 @@ export function AddRegisterUserModal({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="edit-email">Email *</Label>
               <Input
-                id="email"
+                id="edit-email"
                 type="email"
-                placeholder="customer@example.com"
                 value={form.email}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, email: e.target.value }))
@@ -141,10 +133,9 @@ export function AddRegisterUserModal({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="edit-phone">Phone</Label>
             <Input
-              id="phone"
-              placeholder="090515703"
+              id="edit-phone"
               value={form.phone || ""}
               onChange={(e) =>
                 setForm((p) => ({ ...p, phone: e.target.value }))
@@ -152,10 +143,9 @@ export function AddRegisterUserModal({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="message">Message</Label>
+            <Label htmlFor="edit-message">Message</Label>
             <Textarea
-              id="message"
-              placeholder="Lien he tu van"
+              id="edit-message"
               value={form.message || ""}
               onChange={(e) =>
                 setForm((p) => ({ ...p, message: e.target.value }))
@@ -173,8 +163,7 @@ export function AddRegisterUserModal({
               Cancel
             </Button>
             <Button type="submit" className="cursor-pointer">
-              <Plus className="size-4" />
-              Create
+              Save Changes
             </Button>
           </div>
         </form>

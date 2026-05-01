@@ -1,128 +1,129 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { cn } from "@/lib/utils"
 import type { RegisterUserItem } from "@/modules/register-users/services/types/register-users-types"
 import { DataTableColumnHeader } from "@/modules/tasks/components/data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 
-const statuses = [
-  { value: "pending", label: "Pending", className: "border-yellow-500 text-yellow-700 dark:text-yellow-400" },
-  { value: "contacted", label: "Contacted", className: "border-blue-500 text-blue-700 dark:text-blue-400" },
-  { value: "completed", label: "Completed", className: "border-green-600 text-green-700 dark:text-green-400" },
-]
+function formatCreatedAt(value?: string): string {
+  if (!value) return "-"
 
-export const columns: ColumnDef<RegisterUserItem>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-        className="translate-y-[2px] cursor-pointer"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        className="translate-y-[2px] cursor-pointer"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "fullName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Full Name" />
-    ),
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("fullName")}</div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Email" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.getValue("email")}</span>
-    ),
-  },
-  {
-    accessorKey: "phone",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Phone" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm">{row.getValue("phone") || "—"}</span>
-    ),
-  },
-  {
-    accessorKey: "company",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Company" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.getValue("company") || "—"}</span>
-    ),
-  },
-  {
-    accessorKey: "service",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Service" />
-    ),
-    cell: ({ row }) => {
-      const service = row.getValue("service") as string
-      return service ? (
-        <Badge variant="outline" className="text-xs">{service}</Badge>
-      ) : (
-        <span className="text-sm text-muted-foreground">—</span>
-      )
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+export function getColumns(
+  onDelete: (id: string) => void,
+  onEdit: (user: RegisterUserItem) => void
+): ColumnDef<RegisterUserItem>[] {
+  return [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+          className="translate-y-0.5 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          className="translate-y-0.5 cursor-pointer"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
     },
-  },
-  {
-    accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => {
-      const status = statuses.find((s) => s.value === row.getValue("status"))
-      if (!status) return null
-      return (
-        <Badge variant="outline" className={cn("font-normal", status.className)}>
-          {status.label}
-        </Badge>
-      )
-    },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
-    },
-  },
-  {
-    accessorKey: "note",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Note" />
-    ),
-    cell: ({ row }) => {
-      const note = row.getValue("note") as string
-      return (
-        <span className="text-sm text-muted-foreground max-w-[200px] truncate block">
-          {note || "—"}
+    {
+      accessorKey: "id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="ID" />
+      ),
+      cell: ({ row }) => (
+        <span className="block truncate font-medium text-xs">
+          {row.getValue("id")}
         </span>
-      )
+      ),
     },
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} />,
-  },
-]
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Name" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <span className="truncate font-medium">{row.getValue("name")}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {row.original.email}
+          </span>
+        </div>
+      ),
+      filterFn: (row, id, value) => {
+        const search = String(value).toLowerCase()
+        const user = row.original
+
+        return [row.getValue(id), user.email, user.phone, user.message]
+          .filter(Boolean)
+          .some((field) => String(field).toLowerCase().includes(search))
+      },
+    },
+    {
+      accessorKey: "phone",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Phone" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-sm">{row.getValue("phone") || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "message",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Message" />
+      ),
+      cell: ({ row }) => {
+        const message = row.getValue("message") as string
+
+        return (
+          <span className="text-sm text-muted-foreground truncate block">
+            {message || "-"}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Created At" />
+      ),
+      cell: ({ row }) => (
+        <span className="block text-sm">
+          {formatCreatedAt(row.getValue("createdAt"))}
+        </span>
+      ),
+      sortingFn: "datetime",
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <DataTableRowActions row={row} onDelete={onDelete} onEdit={onEdit} />
+      ),
+    },
+  ]
+}

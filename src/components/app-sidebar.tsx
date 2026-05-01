@@ -99,6 +99,11 @@ const data = {
           icon: Users,
         },
         {
+          title: "Customers",
+          url: "/customers",
+          icon: Users,
+        },
+        {
           title: "Register Users",
           url: "/register-users",
           icon: ClipboardList,

@@ -1,12 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Users, Phone, CheckCircle2, Clock } from "lucide-react"
+import { toast } from "sonner"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { columns } from "@/modules/register-users/components/columns"
 import { DataTable } from "@/modules/register-users/components/data-table"
-import { getRegisterUsers, getRegisterUserStats } from "@/modules/register-users/services/register-users-services"
+import { RegisterUsersStatCards } from "@/modules/register-users/components/register-users-stat-cards"
+import {
+  addRegisterUser,
+  deleteRegisterUser,
+  getRegisterUsers,
+  getRegisterUserStats,
+  updateRegisterUser,
+} from "@/modules/register-users/services/register-users-services"
 import type { RegisterUserItem } from "@/modules/register-users/services/types/register-users-types"
 
 export default function RegisterUsersPage() {
@@ -27,8 +33,33 @@ export default function RegisterUsersPage() {
     loadUsers()
   }, [])
 
-  const handleAddUser = (newUser: RegisterUserItem) => {
-    setUsers((prev) => [newUser, ...prev])
+  const handleAddUser = async (newUser: RegisterUserItem) => {
+    try {
+      const docId = await addRegisterUser(newUser)
+      setUsers(prev => [{ ...newUser, id: docId }, ...prev])
+      toast.success("Registration created successfully")
+    } catch (error) {
+      console.error("Failed to add registration:", error)
+      toast.error("Failed to create registration")
+    }
+  }
+
+  const handleDeleteUser = (id: string) => {
+    setUsers(prev => prev.filter(u => u.id !== id))
+  }
+
+  const handleEditUser = async (updatedUser: RegisterUserItem) => {
+    if (!updatedUser.id) return
+    try {
+      await updateRegisterUser(updatedUser.id, updatedUser)
+      setUsers(prev =>
+        prev.map(u => u.id === updatedUser.id ? updatedUser : u)
+      )
+      toast.success("Registration updated successfully")
+    } catch (error) {
+      console.error("Failed to update registration:", error)
+      toast.error("Failed to update registration")
+    }
   }
 
   const stats = getRegisterUserStats(users)
@@ -43,6 +74,7 @@ export default function RegisterUsersPage() {
 
   return (
     <>
+      {/* Page Header */}
       <div className="flex flex-col gap-2 px-4 md:px-6">
         <h1 className="text-2xl font-bold tracking-tight">Customer Registrations</h1>
         <p className="text-muted-foreground">
@@ -50,84 +82,38 @@ export default function RegisterUsersPage() {
         </p>
       </div>
 
-      <div className="h-full flex-1 flex-col space-y-6 px-4 md:px-6 md:flex">
-        {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-          <Card>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Total Registrations</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.total}</span>
-                  </div>
-                </div>
-                <div className="bg-secondary rounded-lg p-3">
-                  <Users className="size-6" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Pending</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.pending}</span>
-                  </div>
-                </div>
-                <div className="bg-yellow-100 dark:bg-yellow-950 rounded-lg p-3">
-                  <Clock className="size-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Contacted</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.contacted}</span>
-                  </div>
-                </div>
-                <div className="bg-blue-100 dark:bg-blue-950 rounded-lg p-3">
-                  <Phone className="size-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-muted-foreground text-sm font-medium">Completed</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.completed}</span>
-                  </div>
-                </div>
-                <div className="bg-green-100 dark:bg-green-950 rounded-lg p-3">
-                  <CheckCircle2 className="size-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Mobile view placeholder */}
+      <div className="md:hidden px-4 md:px-6">
+        <div className="flex items-center justify-center h-96 border rounded-lg bg-muted/20">
+          <div className="text-center p-8">
+            <h3 className="text-lg font-semibold mb-2">Registrations Dashboard</h3>
+            <p className="text-muted-foreground">
+              Please use a larger screen to view the full registrations interface.
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Desktop view */}
+      <div className="hidden h-full flex-1 flex-col space-y-6 px-4 md:px-6 md:flex">
+        {/* Stats Cards */}
+        <RegisterUsersStatCards stats={stats} />
 
         {/* Data Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Registrations</CardTitle>
+            <CardTitle>Customer Management</CardTitle>
             <CardDescription>
-              View, filter, and manage all customer registrations.
+              View, filter, and manage all customer registrations in one place.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DataTable data={users} columns={columns} onAddUser={handleAddUser} />
+            <DataTable
+              data={users}
+              onAddUser={handleAddUser}
+              onDeleteUser={handleDeleteUser}
+              onEditUser={handleEditUser}
+            />
           </CardContent>
         </Card>
       </div>
