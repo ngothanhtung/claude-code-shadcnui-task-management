@@ -9,77 +9,40 @@ import {
   ChevronsUp,
 } from "lucide-react"
 
-import tasksData from "./data/tasks.json"
+import { seedMockDataCollections } from "@/lib/firebase/mock-data-seeder"
 
+import tasksData from "./data/tasks.json"
 import { taskSchema } from "./types/task-types"
 
 export const categories = [
-  {
-    value: "bug",
-    label: "Bug",
-  },
-  {
-    value: "feature",
-    label: "Feature",
-  },
-  {
-    value: "documentation",
-    label: "Docs",
-  },
-  {
-    value: "improvement",
-    label: "Improvement",
-  },
-  {
-    value: "refactor",
-    label: "Refactor",
-  },
+  { value: "bug", label: "Bug" },
+  { value: "feature", label: "Feature" },
+  { value: "documentation", label: "Docs" },
+  { value: "improvement", label: "Improvement" },
+  { value: "refactor", label: "Refactor" },
 ]
 
 export const statuses = [
-  {
-    value: "pending",
-    label: "Pending",
-    icon: Clock,
-  },
-  {
-    value: "todo",
-    label: "Todo",
-    icon: Circle,
-  },
-  {
-    value: "in progress",
-    label: "In Progress",
-    icon: PlayCircle,
-  },
-  {
-    value: "completed",
-    label: "Completed",
-    icon: CheckCircle2,
-  },
+  { value: "pending", label: "Pending", icon: Clock },
+  { value: "todo", label: "Todo", icon: Circle },
+  { value: "in progress", label: "In Progress", icon: PlayCircle },
+  { value: "completed", label: "Completed", icon: CheckCircle2 },
 ]
 
 export const priorities = [
-  {
-    label: "Minor",
-    value: "minor",
-    icon: ChevronDown,
-  },
-  {
-    label: "Normal",
-    value: "normal",
-    icon: Minus,
-  },
-  {
-    label: "Important",
-    value: "important",
-    icon: ChevronUp,
-  },
-  {
-    label: "Critical",
-    value: "critical",
-    icon: ChevronsUp,
-  },
+  { label: "Minor", value: "minor", icon: ChevronDown },
+  { label: "Normal", value: "normal", icon: Minus },
+  { label: "Important", value: "important", icon: ChevronUp },
+  { label: "Critical", value: "critical", icon: ChevronsUp },
 ]
 
 export const taskMockData = taskSchema.array().parse(tasksData)
+
+export function seedTasksMockData() {
+  return seedMockDataCollections("tasks", [
+    {
+      collectionName: "tasks",
+      documents: taskMockData,
+    },
+  ])
+}

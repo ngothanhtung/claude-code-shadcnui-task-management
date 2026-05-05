@@ -53,7 +53,7 @@ export default async function MockDataPage({ searchParams }: MockDataPageProps) 
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold tracking-tight">Mock Data</h1>
           <p className="text-muted-foreground">
-            Seed local module mock data to Firestore collections.
+            Seed tasks mock data to Firestore collections.
           </p>
         </div>
         <form action={seedMockDataAction}>
@@ -85,8 +85,7 @@ export default async function MockDataPage({ searchParams }: MockDataPageProps) 
         <CardHeader>
           <CardTitle>Feature Seeders</CardTitle>
           <CardDescription>
-            Collection names use plural nouns, for example <code>tasks</code> and{" "}
-            <code>users</code>.
+            Collection names use plural nouns, for example <code>tasks</code>.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -94,7 +93,6 @@ export default async function MockDataPage({ searchParams }: MockDataPageProps) 
             <TableHeader>
               <TableRow>
                 <TableHead>Feature</TableHead>
-                <TableHead>Service</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -106,9 +104,6 @@ export default async function MockDataPage({ searchParams }: MockDataPageProps) 
                       <Database className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{feature.label}</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">mock-data-services.ts</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <form action={seedMockDataAction}>

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react"
 import { ArrowUp, BarChart3, CheckCircle2, Clock, ListTodo } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { columns } from "@/modules/tasks/components/columns"
+import { getColumns } from "@/modules/tasks/components/columns"
 import { DataTable } from "@/modules/tasks/components/data-table"
-import { getTasks, getTaskStats } from "@/modules/tasks/services/task-services"
+import { getTaskStats, getTasks } from "@/modules/tasks/services/task-services"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
 export default function TaskPage() {
@@ -32,7 +32,16 @@ export default function TaskPage() {
     setTasks(prev => [newTask, ...prev])
   }
 
+  const handleDeleteTask = (task: Task) => {
+    setTasks(prev => prev.filter(t => t.id !== task.id))
+  }
+
+  const handleUpdateTask = (task: Task) => {
+    setTasks(prev => prev.map(t => t.id === task.id ? task : t))
+  }
+
   const stats = getTaskStats(tasks)
+  const columns = getColumns({ onDelete: handleDeleteTask, onUpdate: handleUpdateTask })
 
   if (loading) {
     return (

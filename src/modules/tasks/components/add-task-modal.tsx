@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -23,13 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 import { priorities, statuses, categories } from "@/modules/tasks/services/task-mock-data"
+import { addTask } from "@/modules/tasks/services/task-services"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
-// Extended task schema for the form
 const taskFormSchema = z.object({
-  id: z.string(),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   status: z.string(),
@@ -46,8 +45,8 @@ interface AddTaskModalProps {
 
 export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
   const [open, setOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState<TaskFormData>({
-    id: "",
     title: "",
     description: "",
     status: "todo",
@@ -56,37 +55,42 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Generate unique task ID
   const generateTaskId = () => {
     const prefix = "TASK"
     const number = Math.floor(Math.random() * 9999) + 1000
     return `${prefix}-${number}`
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
 
-    try {
-      // Validate form data
-      const validatedData = taskFormSchema.parse({
-        ...formData,
-        id: generateTaskId(),
+    const parsed = taskFormSchema.safeParse(formData)
+    if (!parsed.success) {
+      const newErrors: Record<string, string> = {}
+      parsed.error.issues.forEach((issue) => {
+        if (issue.path[0]) {
+          newErrors[issue.path[0] as string] = issue.message
+        }
       })
+      setErrors(newErrors)
+      return
+    }
 
-      // Create the task
+    setSubmitting(true)
+    try {
       const newTask: Task = {
-        id: validatedData.id,
-        title: validatedData.title,
-        status: validatedData.status,
-        category: validatedData.category,
-        priority: validatedData.priority,
+        id: generateTaskId(),
+        title: parsed.data.title,
+        status: parsed.data.status,
+        category: parsed.data.category,
+        priority: parsed.data.priority,
       }
 
+      await addTask(newTask)
       onAddTask?.(newTask)
 
-      // Reset form and close modal
       setFormData({
-        id: "",
         title: "",
         description: "",
         status: "todo",
@@ -95,22 +99,16 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
       })
       setErrors({})
       setOpen(false)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {}
-        error.issues.forEach((issue) => {
-          if (issue.path[0]) {
-            newErrors[issue.path[0] as string] = issue.message
-          }
-        })
-        setErrors(newErrors)
-      }
+    } catch (err) {
+      console.error("Failed to add task:", err)
+      setErrors({ title: "Failed to create task. Please try again." })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleCancel = () => {
     setFormData({
-      id: "",
       title: "",
       description: "",
       status: "todo",
@@ -244,8 +242,12 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
             <Button type="button" variant="outline" onClick={handleCancel} className="cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" className="cursor-pointer">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button type="submit" disabled={submitting} className="cursor-pointer">
+              {submitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Create Task
             </Button>
           </div>

@@ -1,8 +1,6 @@
-import "server-only"
+import { writeBatch, doc, Timestamp } from "firebase/firestore"
 
-import { FieldValue } from "firebase-admin/firestore"
-
-import { adminDb } from "@/lib/firebase/admin"
+import { db } from "@/lib/firebase/client"
 
 export interface MockDataCollection {
   collectionName: string
@@ -43,7 +41,11 @@ export function toFirestoreData(value: unknown): unknown {
     )
   }
 
-  if (typeof value === "function" || typeof value === "symbol" || value === undefined) {
+  if (
+    typeof value === "function" ||
+    typeof value === "symbol" ||
+    value === undefined
+  ) {
     return undefined
   }
 
@@ -54,13 +56,10 @@ export async function seedMockDataCollections(
   feature: string,
   collections: MockDataCollection[]
 ): Promise<SeedFeatureResult> {
-  const db = adminDb()
+  const batch = writeBatch(db)
   const results: SeedCollectionResult[] = []
 
   for (const seedCollection of collections) {
-    const batch = db.batch()
-    const collectionRef = db.collection(seedCollection.collectionName)
-
     seedCollection.documents.forEach((document, index) => {
       const sanitized = toFirestoreData(document) as Record<string, unknown>
       const documentId =
@@ -68,21 +67,22 @@ export async function seedMockDataCollections(
         String(sanitized.id ?? `${seedCollection.collectionName}-${index + 1}`)
 
       batch.set(
-        collectionRef.doc(documentId),
+        doc(db, seedCollection.collectionName, documentId),
         {
           ...sanitized,
-          seededAt: FieldValue.serverTimestamp(),
+          seededAt: Timestamp.now(),
         },
         { merge: true }
       )
     })
 
-    await batch.commit()
     results.push({
       collectionName: seedCollection.collectionName,
       count: seedCollection.documents.length,
     })
   }
+
+  await batch.commit()
 
   return {
     feature,
