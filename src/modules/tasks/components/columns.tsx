@@ -1,16 +1,13 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
+import { format } from "date-fns"
 
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 
-import {
-  categories,
-  priorities,
-  statuses,
-} from "@/modules/tasks/services/task-mock-data"
+import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
@@ -53,7 +50,7 @@ export function getColumns({
         <DataTableColumnHeader column={column} title="Task" />
       ),
       cell: ({ row }) => (
-        <div className="w-22.5 font-medium">{row.getValue("id")}</div>
+        <div className="w-25 font-medium">{row.getValue("id")}</div>
       ),
       enableHiding: false,
     },
@@ -64,36 +61,15 @@ export function getColumns({
       ),
       cell: ({ row }) => {
         return (
-          <div className="flex space-x-2">
-            <span className="max-w-125 truncate font-medium">
-              {row.getValue("title")}
-            </span>
+          <div className="flex flex-col gap-1 max-w-87.5">
+            <span className="truncate font-medium">{row.getValue("title")}</span>
+            {row.original.description && (
+              <span className="text-xs text-muted-foreground truncate">
+                {row.original.description}
+              </span>
+            )}
           </div>
         )
-      },
-    },
-    {
-      accessorKey: "category",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Category" />
-      ),
-      cell: ({ row }) => {
-        const category = categories.find(
-          (cat) => cat.value === row.getValue("category")
-        )
-
-        if (!category) {
-          return null
-        }
-
-        return (
-          <div className="flex w-30 items-center">
-            <Badge variant="outline">{category.label}</Badge>
-          </div>
-        )
-      },
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id))
       },
     },
     {
@@ -103,13 +79,9 @@ export function getColumns({
       ),
       cell: ({ row }) => {
         const status = statuses.find(
-          (status) => status.value === row.getValue("status")
+          (s) => s.value === row.getValue("status")
         )
-
-        if (!status) {
-          return null
-        }
-
+        if (!status) return null
         return (
           <div className="flex w-32.5 items-center">
             {status.icon && (
@@ -130,18 +102,14 @@ export function getColumns({
       ),
       cell: ({ row }) => {
         const priority = priorities.find(
-          (priority) => priority.value === row.getValue("priority")
+          (p) => p.value === row.getValue("priority")
         )
+        if (!priority) return null
 
-        if (!priority) {
-          return null
-        }
-
-        const priorityColors = {
-          critical: "border-red-700 text-red-700 dark:text-red-400",
-          important: "border-orange-500 text-orange-700 dark:text-orange-400",
-          normal: "border-blue-500 text-blue-700 dark:text-blue-400",
-          minor: "border-gray-500 text-gray-700 dark:text-gray-400",
+        const priorityColors: Record<string, string> = {
+          high: "border-red-500 text-red-600 dark:text-red-400",
+          medium: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
+          low: "border-slate-400 text-slate-600 dark:text-slate-400",
         }
 
         return (
@@ -150,7 +118,7 @@ export function getColumns({
               variant="outline"
               className={cn(
                 "pl-2",
-                priorityColors[priority.value as keyof typeof priorityColors]
+                priorityColors[priority.value] ?? ""
               )}
             >
               <span className="text-sm">{priority.label}</span>
@@ -163,6 +131,85 @@ export function getColumns({
       },
     },
     {
+      accessorKey: "tags",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Tags" />
+      ),
+      cell: ({ row }) => {
+        const taskTags: string[] = row.getValue("tags") ?? []
+        if (!taskTags.length) return null
+        return (
+          <div className="flex flex-wrap gap-1 w-50">
+            {taskTags.slice(0, 3).map((tag) => {
+              const tagOption = tags.find((t) => t.value === tag)
+              return (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tagOption?.label ?? tag}
+                </Badge>
+              )
+            })}
+            {taskTags.length > 3 && (
+              <Badge variant="secondary" className="text-xs">
+                +{taskTags.length - 3}
+              </Badge>
+            )}
+          </div>
+        )
+      },
+      filterFn: (row, id, value) => {
+        const rowTags: string[] = row.getValue(id) ?? []
+        return value.every((v: string) => rowTags.includes(v))
+      },
+      enableHiding: true,
+    },
+    {
+      accessorKey: "dueDate",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Due Date" />
+      ),
+      cell: ({ row }) => {
+        const dueDate = row.getValue("dueDate") as string | number | Date | undefined
+        if (!dueDate) return <span className="text-muted-foreground text-sm">—</span>
+        const date = new Date(dueDate)
+        const isOverdue = date < new Date()
+        return (
+          <span
+            className={cn(
+              "text-sm",
+              isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"
+            )}
+          >
+            {format(date, "MMM d, yyyy")}
+          </span>
+        )
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.getValue("dueDate") as string | number | Date | undefined
+        const b = rowB.getValue("dueDate") as string | number | Date | undefined
+        if (!a && !b) return 0
+        if (!a) return 1
+        if (!b) return -1
+        return new Date(a).getTime() - new Date(b).getTime()
+      },
+      enableHiding: true,
+    },
+    {
+      accessorKey: "assigneeId",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Assignee" />
+      ),
+      cell: ({ row }) => {
+        const assigneeId = row.getValue("assigneeId") as string | undefined
+        if (!assigneeId) return <span className="text-muted-foreground text-sm">—</span>
+        return (
+          <span className="text-sm font-mono text-muted-foreground">
+            {assigneeId}
+          </span>
+        )
+      },
+      enableHiding: true,
+    },
+    {
       id: "actions",
       cell: ({ row }) => (
         <DataTableRowActions row={row} onDelete={onDelete} onUpdate={onUpdate} />
@@ -171,4 +218,4 @@ export function getColumns({
   ]
 }
 
-export const columns = []
+export const columns: ColumnDef<Task>[] = []

@@ -1,47 +1,30 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ArrowUp, BarChart3, CheckCircle2, Clock, ListTodo } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { ArrowUp, BarChart3, CheckCircle2, Clock, LayoutGrid, List, ListTodo } from "lucide-react"
+import { Suspense } from "react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getColumns } from "@/modules/tasks/components/columns"
+
+import { AddTaskModal } from "@/modules/tasks/components/add-task-modal"
+import { KanbanBoard } from "@/modules/tasks/components/KanbanBoard"
 import { DataTable } from "@/modules/tasks/components/data-table"
-import { getTaskStats, getTasks } from "@/modules/tasks/services/task-services"
-import type { Task } from "@/modules/tasks/services/types/task-types"
+import { getColumns } from "@/modules/tasks/components/columns"
+import { useTasks } from "@/modules/tasks/services/useTasks"
+import { getTaskStats } from "@/modules/tasks/services/task-services"
 
-export default function TaskPage() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
+function TasksContent() {
+  const searchParams = useSearchParams()
+  const view = (searchParams.get("view") as "list" | "kanban") ?? "list"
 
-  useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const taskList = await getTasks()
-        setTasks(taskList)
-      } catch (error) {
-        console.error("Failed to load tasks:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadTasks()
-  }, [])
-
-  const handleAddTask = (newTask: Task) => {
-    setTasks(prev => [newTask, ...prev])
-  }
-
-  const handleDeleteTask = (task: Task) => {
-    setTasks(prev => prev.filter(t => t.id !== task.id))
-  }
-
-  const handleUpdateTask = (task: Task) => {
-    setTasks(prev => prev.map(t => t.id === task.id ? task : t))
-  }
+  const { tasks, loading, addTask, deleteTask, updateTask, moveTask, restoreTask, groupedTasks } = useTasks()
 
   const stats = getTaskStats(tasks)
-  const columns = getColumns({ onDelete: handleDeleteTask, onUpdate: handleUpdateTask })
+  const columns = getColumns({ onDelete: deleteTask, onUpdate: updateTask })
+
+  const handleMoveTask = (taskId: string, toStatus: Parameters<typeof moveTask>[1], newOrder: number) => {
+    moveTask(taskId, toStatus, newOrder, tasks)
+  }
 
   if (loading) {
     return (
@@ -55,18 +38,23 @@ export default function TaskPage() {
     <>
       {/* Page Header */}
       <div className="flex flex-col gap-2 px-4 md:px-6">
-        <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-        <p className="text-muted-foreground">
-          A powerful task and issue tracker built with Tanstack Table.
-        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
+            <p className="text-muted-foreground text-sm">
+              A powerful task and issue tracker built with Tanstack Table.
+            </p>
+          </div>
+          <AddTaskModal onAddTask={addTask} />
+        </div>
       </div>
 
-      {/* Mobile view placeholder - shows message instead of images */}
+      {/* Mobile view placeholder */}
       <div className="md:hidden px-4 md:px-6">
         <div className="flex items-center justify-center h-96 border rounded-lg bg-muted/20">
           <div className="text-center p-8">
             <h3 className="text-lg font-semibold mb-2">Tasks Dashboard</h3>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Please use a larger screen to view the full tasks interface.
             </p>
           </div>
@@ -86,7 +74,7 @@ export default function TaskPage() {
                     <span className="text-2xl font-bold">{stats.total}</span>
                     <span className="flex items-center gap-0.5 text-sm text-green-500">
                       <ArrowUp className="size-3.5" />
-                      {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+                      {stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0}%
                     </span>
                   </div>
                 </div>
@@ -101,12 +89,12 @@ export default function TaskPage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">Completed</p>
+                  <p className="text-muted-foreground text-sm font-medium">Done</p>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.completed}</span>
+                    <span className="text-2xl font-bold">{stats.done}</span>
                     <span className="flex items-center gap-0.5 text-sm text-green-500">
                       <ArrowUp className="size-3.5" />
-                      {Math.round((stats.completed / stats.total) * 100)}%
+                      {Math.round((stats.done / stats.total) * 100)}%
                     </span>
                   </div>
                 </div>
@@ -141,12 +129,12 @@ export default function TaskPage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">Pending</p>
+                  <p className="text-muted-foreground text-sm font-medium">To Do</p>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.pending}</span>
+                    <span className="text-2xl font-bold">{stats.todo}</span>
                     <span className="flex items-center gap-0.5 text-sm text-orange-500">
                       <ArrowUp className="size-3.5" />
-                      {Math.round((stats.pending / stats.total) * 100)}%
+                      {Math.round((stats.todo / stats.total) * 100)}%
                     </span>
                   </div>
                 </div>
@@ -158,19 +146,77 @@ export default function TaskPage() {
           </Card>
         </div>
 
-        {/* Data Table */}
+        {/* Task Management Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Task Management</CardTitle>
-            <CardDescription>
-              View, filter, and manage all your project tasks in one place
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Task Management</CardTitle>
+                <CardDescription>
+                  View, filter, and manage all your project tasks in one place.
+                </CardDescription>
+              </div>
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <a
+                  href="?view=list"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "list"
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <List className="size-4" />
+                  List
+                </a>
+                <a
+                  href="?view=kanban"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    view === "kanban"
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="size-4" />
+                  Kanban
+                </a>
+              </div>
+            </div>
           </CardHeader>
+
           <CardContent>
-            <DataTable data={tasks} columns={columns} onAddTask={handleAddTask} />
+            {view === "kanban" ? (
+              <div className="h-[calc(100vh-22rem)] min-h-[400px]">
+                <KanbanBoard
+                  tasks={tasks}
+                  groupedTasks={groupedTasks}
+                  onAddTask={addTask}
+                  onDeleteTask={deleteTask}
+                  onUpdateTask={updateTask}
+                  onMoveTask={handleMoveTask}
+                  onRestoreTask={restoreTask}
+                />
+              </div>
+            ) : (
+              <DataTable data={tasks} columns={columns} onAddTask={addTask} />
+            )}
           </CardContent>
         </Card>
       </div>
     </>
+  )
+}
+
+export default function TaskPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-96">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      }
+    >
+      <TasksContent />
+    </Suspense>
   )
 }

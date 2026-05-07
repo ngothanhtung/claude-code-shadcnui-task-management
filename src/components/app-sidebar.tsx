@@ -20,6 +20,7 @@ import {
   LayoutTemplate,
   Users,
   ClipboardList,
+  Send,
 } from "lucide-react"
 import Link from "next/link"
 import { Logo } from "@/components/logo"
@@ -77,6 +78,11 @@ const data = {
           title: "Mail",
           url: "/mail",
           icon: Mail,
+        },
+        {
+          title: "Mail Test",
+          url: "/mail/test",
+          icon: Send,
         },
         {
           title: "Tasks",

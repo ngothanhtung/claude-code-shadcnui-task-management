@@ -1,12 +1,10 @@
 import {
-  ChevronDown,
-  ChevronUp,
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   Circle,
-  Clock,
-  Minus,
   PlayCircle,
-  ChevronsUp,
 } from "lucide-react"
 
 import { seedMockDataCollections } from "@/lib/firebase/mock-data-seeder"
@@ -14,26 +12,29 @@ import { seedMockDataCollections } from "@/lib/firebase/mock-data-seeder"
 import tasksData from "./data/tasks.json"
 import { taskSchema } from "./types/task-types"
 
-export const categories = [
+export const tags = [
   { value: "bug", label: "Bug" },
   { value: "feature", label: "Feature" },
-  { value: "documentation", label: "Docs" },
+  { value: "documentation", label: "Documentation" },
   { value: "improvement", label: "Improvement" },
   { value: "refactor", label: "Refactor" },
+  { value: "security", label: "Security" },
+  { value: "performance", label: "Performance" },
+  { value: "ui", label: "UI" },
+  { value: "backend", label: "Backend" },
+  { value: "testing", label: "Testing" },
 ]
 
 export const statuses = [
-  { value: "pending", label: "Pending", icon: Clock },
-  { value: "todo", label: "Todo", icon: Circle },
-  { value: "in progress", label: "In Progress", icon: PlayCircle },
-  { value: "completed", label: "Completed", icon: CheckCircle2 },
+  { value: "todo", label: "To Do", icon: Circle },
+  { value: "in-progress", label: "In Progress", icon: PlayCircle },
+  { value: "done", label: "Done", icon: CheckCircle2 },
 ]
 
 export const priorities = [
-  { label: "Minor", value: "minor", icon: ChevronDown },
-  { label: "Normal", value: "normal", icon: Minus },
-  { label: "Important", value: "important", icon: ChevronUp },
-  { label: "Critical", value: "critical", icon: ChevronsUp },
+  { value: "low", label: "Low", icon: ArrowDown },
+  { value: "medium", label: "Medium", icon: AlertCircle },
+  { value: "high", label: "High", icon: ArrowUp },
 ]
 
 export const taskMockData = taskSchema.array().parse(tasksData)

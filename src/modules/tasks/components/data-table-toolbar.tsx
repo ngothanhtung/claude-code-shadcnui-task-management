@@ -15,7 +15,7 @@ import {
 import { DataTableViewOptions } from "./data-table-view-options"
 import { AddTaskModal } from "./add-task-modal"
 
-import { categories, priorities, statuses } from "@/modules/tasks/services/task-mock-data"
+import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
 interface DataTableToolbarProps<TData> {
@@ -29,130 +29,133 @@ export function DataTableToolbar<TData>({
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
 
-  const handleStatusChange = (value: string) => {
-    const column = table.getColumn("status")
-    if (value === "all") {
-      column?.setFilterValue(undefined)
-    } else {
-      column?.setFilterValue(value)
-    }
-  }
-
-  const handleCategoryChange = (value: string) => {
-    const column = table.getColumn("category")
-    if (value === "all") {
-      column?.setFilterValue(undefined)
-    } else {
-      column?.setFilterValue(value)
-    }
-  }
-
-  const handlePriorityChange = (value: string) => {
-    const column = table.getColumn("priority")
-    if (value === "all") {
-      column?.setFilterValue(undefined)
-    } else {
-      column?.setFilterValue(value)
-    }
-  }
-
   const statusFilter = table.getColumn("status")?.getFilterValue() as string | undefined
-  const categoryFilter = table.getColumn("category")?.getFilterValue() as string | undefined
   const priorityFilter = table.getColumn("priority")?.getFilterValue() as string | undefined
+  const tagsFilter = table.getColumn("tags")?.getFilterValue() as string[] | undefined
+  const assigneeFilter = table.getColumn("assigneeId")?.getFilterValue() as string | undefined
+
+  const selectedTags = new Set(tagsFilter ?? [])
+
+  const uniqueAssignees = Array.from(
+    new Set(
+      (table.getFilteredRowModel().rows.length > 0
+        ? table.getFilteredRowModel().rows
+        : table.getRowModel().rows
+      )
+        .map((row) => (row.original as Task).assigneeId)
+        .filter(Boolean) as string[]
+    )
+  ).sort()
 
   return (
     <div className="space-y-4">
       {/* Filter Section */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {/* Status Filter */}
-          <Select
-            value={statusFilter || "all"}
-            onValueChange={handleStatusChange}
-          >
-            <SelectTrigger className="w-full cursor-pointer">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="cursor-pointer">All Status</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem
-                  key={status.value}
-                  value={status.value}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center">
-                    {status.icon && (
-                      <status.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                    )}
-                    {status.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        {/* Status Filter */}
+        <Select
+          value={statusFilter || "all"}
+          onValueChange={(value) => {
+            const col = table.getColumn("status")
+            if (value === "all") col?.setFilterValue(undefined)
+            else col?.setFilterValue(value)
+          }}
+        >
+          <SelectTrigger className="w-full cursor-pointer">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">All Status</SelectItem>
+            {statuses.map((s) => (
+              <SelectItem key={s.value} value={s.value} className="cursor-pointer">
+                <div className="flex items-center">
+                  {s.icon && <s.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                  {s.label}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {/* Category Filter */}
-          <Select
-            value={categoryFilter || "all"}
-            onValueChange={handleCategoryChange}
-          >
-            <SelectTrigger className="w-full cursor-pointer">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="cursor-pointer">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem
-                  key={category.value}
-                  value={category.value}
-                  className="cursor-pointer"
-                >
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Priority Filter */}
+        <Select
+          value={priorityFilter || "all"}
+          onValueChange={(value) => {
+            const col = table.getColumn("priority")
+            if (value === "all") col?.setFilterValue(undefined)
+            else col?.setFilterValue(value)
+          }}
+        >
+          <SelectTrigger className="w-full cursor-pointer">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">All Priorities</SelectItem>
+            {priorities.map((p) => (
+              <SelectItem key={p.value} value={p.value} className="cursor-pointer">
+                <div className="flex items-center">
+                  {p.icon && <p.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                  {p.label}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {/* Priority Filter */}
-          <Select
-            value={priorityFilter || "all"}
-            onValueChange={handlePriorityChange}
-          >
-            <SelectTrigger className="w-full cursor-pointer">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="cursor-pointer">All Priorities</SelectItem>
-              {priorities.map((priority) => (
-                <SelectItem
-                  key={priority.value}
-                  value={priority.value}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center">
-                    {priority.icon && (
-                      <priority.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                    )}
-                    {priority.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Tags Filter */}
+        <Select
+          value={selectedTags.size === 1 ? [...selectedTags][0] : "all"}
+          onValueChange={(value) => {
+            const col = table.getColumn("tags")
+            if (value === "all") col?.setFilterValue(undefined)
+            else col?.setFilterValue([value])
+          }}
+        >
+          <SelectTrigger className="w-full cursor-pointer">
+            <SelectValue placeholder="Tags" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">All Tags</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag.value} value={tag.value} className="cursor-pointer">
+                {tag.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Assignee Filter */}
+        <Select
+          value={assigneeFilter || "all"}
+          onValueChange={(value) => {
+            const col = table.getColumn("assigneeId")
+            if (value === "all") col?.setFilterValue(undefined)
+            else col?.setFilterValue(value)
+          }}
+        >
+          <SelectTrigger className="w-full cursor-pointer">
+            <SelectValue placeholder="Assignee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="cursor-pointer">All Assignees</SelectItem>
+            {uniqueAssignees.map((a) => (
+              <SelectItem key={a} value={a} className="cursor-pointer">
+                {a}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Search and Actions Section */}
       <div className="flex items-center justify-between">
         <div className="flex flex-1 items-center space-x-2">
           <Input
-            placeholder="Search Task"
+            placeholder="Search tasks..."
             value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
               table.getColumn("title")?.setFilterValue(event.target.value)
             }
-            className=" w-[200px] lg:w-[300px] cursor-text"
+            className="w-50 lg:w-75 cursor-text"
           />
           <Button
             variant="outline"
