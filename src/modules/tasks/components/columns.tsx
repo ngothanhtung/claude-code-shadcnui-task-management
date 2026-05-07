@@ -17,7 +17,7 @@ export function getColumns({
   onUpdate,
 }: {
   onDelete: (task: Task) => void
-  onUpdate: (task: Task) => void
+  onUpdate: (task: Task) => Promise<void>
 }): ColumnDef<Task>[] {
   return [
     {

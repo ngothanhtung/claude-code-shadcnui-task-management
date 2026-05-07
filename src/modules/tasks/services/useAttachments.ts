@@ -29,8 +29,6 @@ export function useAttachments({ task, onTaskUpdate, userId }: UseAttachmentsOpt
     fileName: null,
   })
 
-  const attachments: TaskAttachment[] = task.attachments ?? []
-
   const upload = useCallback(
     async (file: File) => {
       const validation = validateFile(file)
@@ -42,13 +40,18 @@ export function useAttachments({ task, onTaskUpdate, userId }: UseAttachmentsOpt
       setUploadState({ isUploading: true, progress: 0, fileName: file.name })
 
       try {
-        const attachment = await uploadAttachment(task.id, file, userId, (progress) => {
-          setUploadState((prev) => ({ ...prev, progress }))
-        })
+        const attachment: TaskAttachment = await uploadAttachment(
+          task.id,
+          file,
+          userId,
+          (progress) => {
+            setUploadState((prev) => ({ ...prev, progress }))
+          }
+        )
 
         const updated: Task = {
           ...task,
-          attachments: [...attachments, attachment],
+          attachments: [...(task.attachments ?? []), attachment],
         }
         await onTaskUpdate(updated)
         toast.success(`"${file.name}" uploaded successfully`)
@@ -61,7 +64,10 @@ export function useAttachments({ task, onTaskUpdate, userId }: UseAttachmentsOpt
         setUploadState({ isUploading: false, progress: 0, fileName: null })
       }
     },
-    [task, attachments, userId, onTaskUpdate]
+    // task.id, task.attachments, and userId are primitives/references that are always
+    // up-to-date when upload() is called — they only change between renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [task.id, userId]
   )
 
   const remove = useCallback(
@@ -71,7 +77,7 @@ export function useAttachments({ task, onTaskUpdate, userId }: UseAttachmentsOpt
 
         const updated: Task = {
           ...task,
-          attachments: attachments.filter((a) => a.id !== attachment.id),
+          attachments: (task.attachments ?? []).filter((a) => a.id !== attachment.id),
         }
         await onTaskUpdate(updated)
         toast.success(`"${attachment.fileName}" deleted`)
@@ -82,8 +88,13 @@ export function useAttachments({ task, onTaskUpdate, userId }: UseAttachmentsOpt
         throw error
       }
     },
-    [task, attachments, onTaskUpdate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [task.id, onTaskUpdate]
   )
+
+  // Always read from task prop so this is never stale — the parent re-renders
+  // whenever Firestore data changes (via useTasks subscribeToTasks).
+  const attachments: TaskAttachment[] = task.attachments ?? []
 
   return {
     attachments,

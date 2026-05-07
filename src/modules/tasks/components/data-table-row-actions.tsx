@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { Row } from "@tanstack/react-table"
 import { MoreHorizontal, Paperclip, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -30,20 +30,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 
 import { auth } from "@/lib/firebase/client"
-import { AttachmentList } from "@/modules/tasks/components/AttachmentList"
-import { AttachmentUploader } from "@/modules/tasks/components/AttachmentUploader"
 import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
 import type { Task } from "@/modules/tasks/services/types/task-types"
-import { useAttachments } from "@/modules/tasks/services/useAttachments"
+import {
+  UploadDialog,
+  type UploadDialogHandle,
+} from "@/modules/tasks/components/UploadDialog"
 
 interface DataTableRowActionsProps {
   row: Row<Task>
   onDelete?: (task: Task) => void
-  onUpdate?: (task: Task) => void
+  onUpdate?: (task: Task) => Promise<void>
 }
 
 export function DataTableRowActions({
@@ -54,21 +54,12 @@ export function DataTableRowActions({
   const task = row.original
   const now = new Date().toISOString()
 
-  const [open, setOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editData, setEditData] = useState<Task>(task)
-  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null)
+  const uploadDialogRef = useRef<UploadDialogHandle>(null)
 
   const userId = auth.currentUser?.uid ?? "anonymous"
-
-  const { uploadState, upload, remove } = useAttachments({
-    task: editData,
-    onTaskUpdate: async (updated) => {
-      setEditData(updated)
-      await onUpdate?.(updated)
-    },
-    userId,
-  })
 
   const handleDelete = async () => {
     try {
@@ -79,27 +70,17 @@ export function DataTableRowActions({
     }
   }
 
-  const handleDeleteAttachment = async (attachment: Parameters<typeof remove>[0]) => {
-    setDeletingAttachmentId(attachment.id)
-    try {
-      await remove(attachment)
-    } finally {
-      setDeletingAttachmentId(null)
-    }
-  }
-
   const handleEdit = async () => {
     setSubmitting(true)
     const updated: Task = {
       ...task,
       ...editData,
-      attachments: editData.attachments ?? [],
       updatedAt: now,
     }
     try {
       await onUpdate?.(updated)
       setEditData(updated)
-      setOpen(false)
+      setEditOpen(false)
     } catch {
       // Error toast is handled by useTasks; keep dialog open so user can retry
     } finally {
@@ -135,7 +116,7 @@ export function DataTableRowActions({
             className="cursor-pointer"
             onClick={() => {
               setEditData(task)
-              setOpen(true)
+              setEditOpen(true)
             }}
           >
             <Pencil className="mr-2 h-4 w-4" />
@@ -143,10 +124,7 @@ export function DataTableRowActions({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer"
-            onClick={() => {
-              setEditData(task)
-              setOpen(true)
-            }}
+            onClick={() => uploadDialogRef.current?.open()}
           >
             <Paperclip className="mr-2 h-4 w-4" />
             Attachments
@@ -162,7 +140,14 @@ export function DataTableRowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <UploadDialog
+        ref={uploadDialogRef}
+        task={task}
+        onTaskUpdate={onUpdate ?? (async () => {})}
+        userId={userId}
+      />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-131.25">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
@@ -298,24 +283,9 @@ export function DataTableRowActions({
                 })}
               </div>
             </div>
-
-            <Separator />
-
-            <AttachmentUploader
-              onUpload={upload}
-              uploadState={uploadState}
-              disabled={submitting}
-            />
-
-            <AttachmentList
-              attachments={editData.attachments ?? []}
-              onDelete={handleDeleteAttachment}
-              deletingId={deletingAttachmentId}
-              disabled={submitting}
-            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
+            <Button variant="outline" onClick={() => setEditOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
             <Button onClick={handleEdit} disabled={submitting} className="cursor-pointer">
