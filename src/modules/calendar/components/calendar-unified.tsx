@@ -87,13 +87,11 @@ export function CalendarMain({ eventDates = [] }: CalendarMainProps) {
   }
 
   const handleNewCalendar = () => {
-    console.log("Creating new calendar")
-    // In a real app, this would open a new calendar form
+    // TODO: wire up to Firestore
   }
 
   const handleNewEvent = () => {
-    console.log("Creating new event")
-    // In a real app, this would open event form
+    // TODO: wire up to Firestore
   }
 
   const renderCalendarGrid = () => {

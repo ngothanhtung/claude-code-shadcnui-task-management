@@ -1,3 +1,8 @@
+import customersData from "./data/customers.json"
+import type { Customer } from "./types/customer-types"
+
+export const customerMockData = customersData as Customer[]
+
 // Status/type options used by toolbar, columns, add/edit modals
 
 export const customerStatuses = [

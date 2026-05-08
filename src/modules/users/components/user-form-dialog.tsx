@@ -31,7 +31,7 @@ import { Plus } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import type { UserFormValues } from "@/modules/users/services/types/user-types"
+import type { User, UserFormValues } from "@/modules/users/services/types/user-types"
 
 const userFormSchema = z.object({
   name: z.string().min(2, {
@@ -57,43 +57,70 @@ const userFormSchema = z.object({
 type UserFormSchemaValues = z.infer<typeof userFormSchema>
 
 interface UserFormDialogProps {
+  editingUser?: User | null
   onAddUser: (user: UserFormValues) => void
+  onUpdateUser?: (updated: User) => void
+  onClose?: () => void
 }
 
-export function UserFormDialog({ onAddUser }: UserFormDialogProps) {
+export function UserFormDialog({
+  editingUser,
+  onAddUser,
+  onUpdateUser,
+  onClose,
+}: UserFormDialogProps) {
+  const isEditing = !!editingUser
   const [open, setOpen] = useState(false)
 
   const form = useForm<UserFormSchemaValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      role: "",
-      plan: "",
-      billing: "",
-      status: "",
+      name: editingUser?.name ?? "",
+      email: editingUser?.email ?? "",
+      role: editingUser?.role ?? "",
+      plan: editingUser?.plan ?? "",
+      billing: editingUser?.billing ?? "",
+      status: editingUser?.status ?? "",
     },
   })
 
   function onSubmit(data: UserFormSchemaValues) {
-    onAddUser(data)
-    form.reset()
-    setOpen(false)
+    if (isEditing && editingUser && onUpdateUser) {
+      onUpdateUser({ ...editingUser, ...data })
+      setOpen(false)
+      onClose?.()
+    } else {
+      onAddUser(data)
+      form.reset()
+      setOpen(false)
+    }
+  }
+
+  const handleOpenChange = (val: boolean) => {
+    setOpen(val)
+    if (!val) {
+      form.reset()
+      onClose?.()
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" />
-          Add New User
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isEditing ? true : open} onOpenChange={handleOpenChange}>
+      {!isEditing && (
+        <DialogTrigger asChild>
+          <Button className="cursor-pointer">
+            <Plus className="mr-2 h-4 w-4" />
+            Add New User
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit User" : "Add New User"}</DialogTitle>
           <DialogDescription>
-            Create a new user account. Click save when you&apos;re done.
+            {isEditing
+              ? "Update user account details. Click save when you&apos;re done."
+              : "Create a new user account. Click save when you&apos;re done."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -221,7 +248,7 @@ export function UserFormDialog({ onAddUser }: UserFormDialogProps) {
             </div>
             <DialogFooter>
               <Button type="submit" className="cursor-pointer">
-                Save User
+                {isEditing ? "Update User" : "Save User"}
               </Button>
             </DialogFooter>
           </form>

@@ -1,5 +1,5 @@
 export interface User {
-  id: number
+  id: string
   name: string
   email: string
   avatar: string
@@ -10,6 +10,9 @@ export interface User {
   joinedDate: string
   lastLogin: string
 }
+
+export type UserStatus = "Active" | "Pending" | "Error" | "Inactive"
+export type UserRole = "Admin" | "Author" | "Editor" | "Maintainer" | "Subscriber"
 
 export interface UserFormValues {
   name: string

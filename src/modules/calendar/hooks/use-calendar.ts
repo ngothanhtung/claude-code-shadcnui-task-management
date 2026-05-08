@@ -32,7 +32,7 @@ export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarRet
   const [showEventForm, setShowEventForm] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showCalendarSheet, setShowCalendarSheet] = useState(false)
-  const [events] = useState<CalendarEvent[]>(initialEvents)
+  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents)
 
   const handleDateSelect = useCallback((date: Date) => {
     setSelectedDate(date)
@@ -45,17 +45,33 @@ export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarRet
   }, [])
 
   const handleNewCalendar = useCallback(() => {
-    console.log("Creating new calendar")
+    // TODO: wire up to Firestore
   }, [])
 
   const handleSaveEvent = useCallback((eventData: Partial<CalendarEvent>) => {
-    console.log("Saving event:", eventData)
+    if (eventData.id) {
+      setEvents(prev => prev.map(e => e.id === eventData.id ? { ...e, ...eventData } as CalendarEvent : e))
+    } else {
+      const newEvent: CalendarEvent = {
+        id: Date.now(),
+        title: eventData.title ?? "",
+        date: eventData.date ?? new Date(),
+        time: eventData.time ?? "9:00 AM",
+        duration: eventData.duration ?? "1 hour",
+        type: eventData.type ?? "event",
+        attendees: eventData.attendees ?? [],
+        location: eventData.location ?? "",
+        color: eventData.color ?? "bg-blue-500",
+        description: eventData.description,
+      }
+      setEvents(prev => [...prev, newEvent])
+    }
     setShowEventForm(false)
     setEditingEvent(null)
   }, [])
 
   const handleDeleteEvent = useCallback((eventId: number) => {
-    console.log("Deleting event:", eventId)
+    setEvents(prev => prev.filter(e => e.id !== eventId))
     setShowEventForm(false)
     setEditingEvent(null)
   }, [])

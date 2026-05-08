@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card"
-import {Users, CreditCard, UserCheck, Clock5, TrendingUp, TrendingDown, ArrowUpRight} from "lucide-react"
+import {Users, CreditCard, UserCheck, AlertCircle, TrendingUp, TrendingDown, ArrowUpRight} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from '@/lib/utils'
 
@@ -31,7 +31,7 @@ const performanceMetrics = [
     current: '17%',
     previous: '24%',
     growth: -8.0,
-    icon: Clock5,
+    icon: AlertCircle,
   },
 ]
 

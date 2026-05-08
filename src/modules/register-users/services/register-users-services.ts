@@ -4,18 +4,32 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDocs,
 } from "firebase/firestore"
-import { getFirestoreCollection } from "@/lib/firebase/firestore-query"
-import { db } from "@/lib/firebase/client"
 import type { RegisterUserItem } from "./types/register-users-types"
 
+const COLLECTION_NAME = "register_users"
+
+const registerUsersMockData: RegisterUserItem[] = []
+
 export async function getRegisterUsers(): Promise<RegisterUserItem[]> {
-  return getFirestoreCollection<RegisterUserItem>("register_users", [])
+  try {
+    const { db } = await import("@/lib/firebase/client")
+    const snapshot = await getDocs(collection(db, COLLECTION_NAME))
+    if (snapshot.empty) return registerUsersMockData
+    return snapshot.docs.map((docSnap) => {
+      const data = docSnap.data() as RegisterUserItem
+      return { ...data, id: data.id ?? docSnap.id }
+    })
+  } catch {
+    return registerUsersMockData
+  }
 }
 
 export async function addRegisterUser(user: RegisterUserItem): Promise<string> {
+  const { db } = await import("@/lib/firebase/client")
   const { id, ...data } = user
-  const docRef = await addDoc(collection(db, "register_users"), data)
+  const docRef = await addDoc(collection(db, COLLECTION_NAME), data)
   return docRef.id
 }
 
@@ -23,14 +37,13 @@ export async function updateRegisterUser(
   id: string,
   data: Partial<RegisterUserItem>
 ): Promise<void> {
-  const docRef = doc(db, "register_users", id)
-  const { id: _id, ...payload } = data
-  await updateDoc(docRef, payload)
+  const { db } = await import("@/lib/firebase/client")
+  await updateDoc(doc(db, COLLECTION_NAME, id), data)
 }
 
 export async function deleteRegisterUser(id: string): Promise<void> {
-  const docRef = doc(db, "register_users", id)
-  await deleteDoc(docRef)
+  const { db } = await import("@/lib/firebase/client")
+  await deleteDoc(doc(db, COLLECTION_NAME, id))
 }
 
 export function getRegisterUserStats(users: RegisterUserItem[]) {

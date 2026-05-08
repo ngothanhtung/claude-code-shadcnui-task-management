@@ -54,16 +54,42 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { UserFormDialog } from "./user-form-dialog"
-import type { User, UserFormValues } from "@/modules/users/services/types/user-types"
+import type { User, UserFormValues, UserRole, UserStatus } from "@/modules/users/services/types/user-types"
 
 interface DataTableProps {
   users: User[]
-  onDeleteUser: (id: number) => void
+  editingUser: User | null
+  onDeleteUser: (id: string) => void
   onEditUser: (user: User) => void
   onAddUser: (userData: UserFormValues) => void
+  onUpdateUser: (updated: User) => void
+  onEditDialogClose: () => void
 }
 
-export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTableProps) {
+const STATUS_COLORS: Record<UserStatus, string> = {
+  Active: "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20",
+  Pending: "text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-900/20",
+  Error: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20",
+  Inactive: "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20",
+}
+
+const ROLE_COLORS: Record<UserRole, string> = {
+  Admin: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20",
+  Editor: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20",
+  Author: "text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/20",
+  Maintainer: "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20",
+  Subscriber: "text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-900/20",
+}
+
+export function DataTable({
+  users,
+  editingUser,
+  onDeleteUser,
+  onEditUser,
+  onAddUser,
+  onUpdateUser,
+  onEditDialogClose,
+}: DataTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -71,39 +97,23 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
   const [globalFilter, setGlobalFilter] = useState("")
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20"
-      case "Pending":
-        return "text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-900/20"
-      case "Error":
-        return "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20"
-      case "Inactive":
-        return "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20"
-      default:
-        return "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20"
-    }
+    return STATUS_COLORS[status as UserStatus] ?? "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20"
   }
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case "Admin":
-        return "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20"
-      case "Editor":
-        return "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20"
-      case "Author":
-        return "text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/20"
-      case "Maintainer":
-        return "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20"
-      case "Subscriber":
-        return "text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-900/20"
-      default:
-        return "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20"
-    }
+    return ROLE_COLORS[role as UserRole] ?? "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-900/20"
   }
 
   const exactFilter = (row: Row<User>, columnId: string, value: string) => {
     return row.getValue(columnId) === value
+  }
+
+  const handleEditWithDialog = (user: User) => {
+    onEditUser(user)
+  }
+
+  const handleUpdateFromDialog = (updated: User) => {
+    onUpdateUser(updated)
   }
 
   const columns: ColumnDef<User>[] = [
@@ -212,7 +222,7 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
               variant="ghost"
               size="icon"
               className="h-8 w-8 cursor-pointer"
-              onClick={() => onEditUser(user)}
+              onClick={() => handleEditWithDialog(user)}
             >
               <Pencil className="size-4" />
               <span className="sr-only">Edit user</span>
@@ -367,7 +377,6 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
           </Select>
         </div>
         <div className="space-y-2">
-
           <Label htmlFor="column-visibility" className="text-sm font-medium">
             Column Visibility
           </Label>
@@ -452,7 +461,6 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
       </div>
 
       <div className="flex items-center justify-between space-x-2 py-4">
-
         <div className="flex items-center space-x-2">
           <Label htmlFor="page-size" className="text-sm font-medium">
             Show
@@ -480,7 +488,7 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
           {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2 hidden sm:block">
+          <div className="hidden sm:flex items-center space-x-2">
             <p className="text-sm font-medium">Page</p>
             <strong className="text-sm">
               {table.getState().pagination.pageIndex + 1} of{" "}
@@ -509,6 +517,15 @@ export function DataTable({ users, onDeleteUser, onEditUser, onAddUser }: DataTa
           </div>
         </div>
       </div>
+
+      {editingUser && (
+        <UserFormDialog
+          editingUser={editingUser}
+          onAddUser={onAddUser}
+          onUpdateUser={handleUpdateFromDialog}
+          onClose={onEditDialogClose}
+        />
+      )}
     </div>
   )
 }

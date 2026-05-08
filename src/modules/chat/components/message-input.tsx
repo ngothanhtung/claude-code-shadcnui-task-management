@@ -82,8 +82,7 @@ export function MessageInput({
   }
 
   const handleFileUpload = (type: "image" | "file") => {
-    // In a real app, this would open a file picker
-    console.log(`Upload ${type}`)
+    // TODO: wire up to Firebase Storage
   }
 
   return (

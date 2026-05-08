@@ -48,17 +48,11 @@ export function CalendarSidebar({
 
       {/* Calendars */}
       <div className="flex-1 p-4">
-        <Calendars 
+        <Calendars
           onNewCalendar={onNewCalendar}
-          onCalendarToggle={(calendarId, visible) => {
-            console.log(`Calendar ${calendarId} visibility: ${visible}`)
-          }}
-          onCalendarEdit={(calendarId) => {
-            console.log(`Edit calendar: ${calendarId}`)
-          }}
-          onCalendarDelete={(calendarId) => {
-            console.log(`Delete calendar: ${calendarId}`)
-          }}
+          onCalendarToggle={() => {}}
+          onCalendarEdit={() => {}}
+          onCalendarDelete={() => {}}
         />
       </div>
 

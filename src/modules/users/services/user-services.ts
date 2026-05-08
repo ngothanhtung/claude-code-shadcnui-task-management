@@ -18,11 +18,10 @@ export function generateUserAvatar(name: string) {
 }
 
 export function createUser(users: User[], userData: UserFormValues): User {
-  const nextId = users.length > 0 ? Math.max(...users.map((user) => user.id)) + 1 : 1
   const today = new Date().toISOString().split("T")[0]
 
   return {
-    id: nextId,
+    id: `user-${Date.now()}`,
     name: userData.name,
     email: userData.email,
     avatar: generateUserAvatar(userData.name),

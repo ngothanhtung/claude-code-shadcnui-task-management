@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react"
 import { StatCards } from "@/modules/users/components/stat-cards"
 import { DataTable } from "@/modules/users/components/data-table"
-import { userMockData } from "@/modules/users/services/user-mock-data"
 import { createUser, getUsers } from "@/modules/users/services/user-services"
 import type { User, UserFormValues } from "@/modules/users/services/types/user-types"
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(userMockData)
+  const [users, setUsers] = useState<User[]>([])
+  const [editingUser, setEditingUser] = useState<User | null>(null)
 
   useEffect(() => {
     getUsers().then(setUsers)
@@ -19,14 +19,17 @@ export default function UsersPage() {
     setUsers(prev => [newUser, ...prev])
   }
 
-  const handleDeleteUser = (id: number) => {
-    setUsers(prev => prev.filter(user => user.id !== id))
+  const handleEditUser = (user: User) => {
+    setEditingUser(user)
   }
 
-  const handleEditUser = (user: User) => {
-    // For now, just log the user to edit
-    // In a real app, you'd open an edit dialog
-    console.log("Edit user:", user)
+  const handleUpdateUser = (updated: User) => {
+    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u))
+    setEditingUser(null)
+  }
+
+  const handleDeleteUser = (id: string) => {
+    setUsers(prev => prev.filter(user => user.id !== id))
   }
 
   return (
@@ -34,13 +37,16 @@ export default function UsersPage() {
       <div className="@container/main px-4 lg:px-6">
         <StatCards />
       </div>
-      
+
       <div className="@container/main px-4 lg:px-6 mt-8 lg:mt-12">
-        <DataTable 
+        <DataTable
           users={users}
+          editingUser={editingUser}
           onDeleteUser={handleDeleteUser}
           onEditUser={handleEditUser}
           onAddUser={handleAddUser}
+          onUpdateUser={handleUpdateUser}
+          onEditDialogClose={() => setEditingUser(null)}
         />
       </div>
     </div>

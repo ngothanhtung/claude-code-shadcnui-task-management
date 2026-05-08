@@ -1,15 +1,12 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from "firebase/firestore"
+import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { getFirestoreCollection } from "@/lib/firebase/firestore-query"
+import { customerMockData } from "./customer-mock-data"
 import type { Customer } from "./types/customer-types"
 
 const COLLECTION_NAME = "customers"
 
 export async function getCustomers(): Promise<Customer[]> {
-  const { db } = await import("@/lib/firebase/client")
-  const snapshot = await getDocs(collection(db, COLLECTION_NAME))
-  return snapshot.docs.map((docSnap) => {
-    const data = docSnap.data() as Customer
-    return { ...data, id: data.id ?? docSnap.id }
-  })
+  return getFirestoreCollection<Customer>(COLLECTION_NAME, customerMockData)
 }
 
 export async function addCustomer(customer: Customer): Promise<string> {

@@ -1,7 +1,8 @@
-import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
-import { FirebaseStorage, getStorage } from 'firebase/storage';
+import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai"
+import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app"
+import { Auth, getAuth } from "firebase/auth"
+import { Firestore, getFirestore } from "firebase/firestore"
+import { FirebaseStorage, getStorage } from "firebase/storage"
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,29 +12,47 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+}
 
 function validateFirebaseEnv(): void {
   const requiredEntries: Array<[string, string | undefined]> = [
-    ['NEXT_PUBLIC_FIREBASE_API_KEY', firebaseConfig.apiKey],
-    ['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', firebaseConfig.authDomain],
-    ['NEXT_PUBLIC_FIREBASE_PROJECT_ID', firebaseConfig.projectId],
-    ['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', firebaseConfig.storageBucket],
-    ['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', firebaseConfig.messagingSenderId],
-    ['NEXT_PUBLIC_FIREBASE_APP_ID', firebaseConfig.appId],
-  ];
+    ["NEXT_PUBLIC_FIREBASE_API_KEY", firebaseConfig.apiKey],
+    ["NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", firebaseConfig.authDomain],
+    ["NEXT_PUBLIC_FIREBASE_PROJECT_ID", firebaseConfig.projectId],
+    ["NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", firebaseConfig.storageBucket],
+    [
+      "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+      firebaseConfig.messagingSenderId,
+    ],
+    ["NEXT_PUBLIC_FIREBASE_APP_ID", firebaseConfig.appId],
+  ]
 
-  const missing = requiredEntries.filter(([, value]) => !value).map(([key]) => key);
+  const missing = requiredEntries
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
 
   if (missing.length > 0) {
-    throw new Error(`Missing Firebase environment variables: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing Firebase environment variables: ${missing.join(", ")}`
+    )
   }
 }
 
-validateFirebaseEnv();
+// ✅ Chỉ validate ở client hoặc khi không phải môi trường test
+if (process.env.NODE_ENV !== "test") {
+  validateFirebaseEnv()
+}
 
-export const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const app: FirebaseApp = getApps().length
+  ? getApp()
+  : initializeApp(firebaseConfig)
 
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
-export const storage: FirebaseStorage = getStorage(app);
+export const auth: Auth = getAuth(app)
+export const db: Firestore = getFirestore(app)
+export const storage: FirebaseStorage = getStorage(app)
+
+// ✅ Chỉ khởi tạo AI ở client-side
+export const ai = getAI(app, { backend: new GoogleAIBackend() })
+
+// ✅ Tên model đúng
+export const model = getGenerativeModel(ai, { model: "gemini-3-flash-preview" })
