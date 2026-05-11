@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Bot, Loader2, RefreshCcw, Send, Sparkles, User } from "lucide-react"
-import { useForm } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -24,77 +23,74 @@ type ChatMessage = {
   text: string
 }
 
-type ClaudeResponse = any
+interface ClaudeMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
+interface ClaudeResponse {
+  id: string
+  type: string
+  role: string
+  model: string
+  content: Array<{
+    type: string
+    text?: string
+    thinking?: string
+  }>
+  usage: {
+    input_tokens: number
+    output_tokens: number
+  }
+}
 
 const initialMessages: ChatMessage[] = [
   {
     id: "seed-user",
     role: "user",
-    text: "Hello, I have 2 dogs in my house.",
+    text: "Xin chào! Bạn là ai?",
   },
   {
-    id: "seed-model",
+    id: "seed-assistant",
     role: "assistant",
-    text: "Great to meet you. What would you like to know?",
+    text: "Xin chào! Tôi là Claude Code, một trợ lý AI được cung cấp qua proxy API. Tôi có thể giúp bạn với nhiều tác vụ như viết code, debug, tạo tài liệu, và trả lời câu hỏi.",
   },
 ]
 
 const suggestedPrompts = [
-  "Tóm tắt cách hoạt động của startChat trong Firebase AI.",
-  "Viết giúp tôi một prompt để tạo chatbot hỗ trợ sản phẩm.",
-  "Giải thích sự khác nhau giữa model và chat session.",
+  "Viết tiêu đề và mô tả cho BUG: Đăng nhập không thành công, mặc dù USERNAME / PASSWORD đúng",
+  "Viết một hàm JavaScript để validate email",
+  "Giải thích khác biệt giữa REST API và GraphQL",
 ]
 
 function getErrorMessage(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error)
-  const lower = raw.toLowerCase()
+  const rawMessage = error instanceof Error ? error.message : String(error)
+  const normalizedMessage = rawMessage.toLowerCase()
 
   if (
-    lower.includes("429") ||
-    lower.includes("prepayment credits") ||
-    lower.includes("billing")
+    normalizedMessage.includes("401") ||
+    normalizedMessage.includes("unauthorized")
   ) {
-    return "Dịch vụ AI hiện không phản hồi do giới hạn/chi phí. Vui lòng kiểm tra API key hoặc thử lại sau."
+    return "API key không hợp lệ hoặc không được cấu hình. Vui lòng kiểm tra biến môi trường."
+  }
+
+  if (normalizedMessage.includes("429")) {
+    return "Quá nhiều yêu cầu. Vui lòng chờ một chút rồi thử lại."
   }
 
   if (
-    lower.includes("401") ||
-    lower.includes("unauthorized") ||
-    lower.includes("api key")
+    normalizedMessage.includes("network") ||
+    normalizedMessage.includes("fetch")
   ) {
-    return "Yêu cầu không hợp lệ hoặc API key sai. Kiểm tra NEXT_PUBLIC_CLAUDE_API_KEY/CLAUDE_API_KEY."
+    return "Lỗi kết nối. Vui lòng kiểm tra kết nối internet."
   }
 
-  return raw || "Không thể gửi tin nhắn lúc này."
+  return rawMessage || "Không thể gửi tin nhắn lúc này."
 }
 
-function extractTextFromResponse(data: ClaudeResponse): string {
-  try {
-    // Try common Claude-like shapes
-    if (Array.isArray(data?.output?.content)) {
-      return data.output.content
-        .map(
-          (c: any) => c.text || (Array.isArray(c.parts) ? c.parts.join("") : "")
-        )
-        .join("\n")
-        .trim()
-    }
-
-    if (Array.isArray(data?.content)) {
-      return data.content
-        .map(
-          (c: any) => c.text || (Array.isArray(c.parts) ? c.parts.join("") : "")
-        )
-        .join("\n")
-        .trim()
-    }
-
-    if (typeof data?.text === "string") return data.text.trim()
-
-    return JSON.stringify(data)
-  } catch {
-    return "(Không thể đọc nội dung trả lời)"
-  }
+function extractTextFromResponse(response: ClaudeResponse): string {
+  const textContent = response.content.find((c) => c.type === "text")
+  return textContent?.text?.trim() || "Không nhận được phản hồi từ Claude Code."
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -128,16 +124,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   )
 }
 
-export default function GeminiPage() {
+export default function ClaudeCodePage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [input, setInput] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
-
-  const { register, handleSubmit, reset, watch } = useForm<{ prompt: string }>({
-    defaultValues: { prompt: "" },
-  })
-  const watchPrompt = watch("prompt")
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -145,14 +137,17 @@ export default function GeminiPage() {
 
   const handleReset = () => {
     setMessages(initialMessages)
-    reset({ prompt: "" })
+    setInput("")
     setError(null)
     setIsSending(false)
   }
 
-  const handleSend = async (data: { prompt: string }) => {
-    const trimmedInput = data.prompt.trim()
-    if (!trimmedInput || isSending) return
+  const handleSend = async () => {
+    const trimmedInput = input.trim()
+
+    if (!trimmedInput || isSending) {
+      return
+    }
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -161,25 +156,35 @@ export default function GeminiPage() {
     }
 
     setError(null)
-    setMessages((m) => [...m, userMessage])
-    reset({ prompt: "" })
+    setMessages((currentMessages) => [...currentMessages, userMessage])
+    setInput("")
     setIsSending(true)
 
     try {
-      const claudeMessages = messages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role, content: m.text }))
-        .concat({ role: "user", content: trimmedInput })
+      const claudeMessages: ClaudeMessage[] = [
+        ...messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            role: (m.role === "assistant" ? "assistant" : "user") as
+              | "user"
+              | "assistant",
+            content: m.text,
+          })),
+        {
+          role: "user" as "user",
+          content: trimmedInput,
+        },
+      ]
 
       const apiKey =
-        process.env.NEXT_PUBLIC_CLAUDE_API_KEY ||
-        (process.env.CLAUDE_API_KEY as string | undefined)
-      if (!apiKey)
+        process.env.NEXT_PUBLIC_CLAUDE_API_KEY || process.env.CLAUDE_API_KEY
+      if (!apiKey) {
         throw new Error(
           "API key không được cấu hình. Vui lòng thêm NEXT_PUBLIC_CLAUDE_API_KEY hoặc CLAUDE_API_KEY vào .env.local"
         )
+      }
 
-      const res = await fetch("https://api.nkq.vn/v1/messages", {
+      const response = await fetch("https://api.nkq.vn/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -192,21 +197,26 @@ export default function GeminiPage() {
         }),
       })
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.message || `HTTP ${res.status}: ${res.statusText}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        )
       }
 
-      const dataResp = await res.json()
-      const reply =
-        extractTextFromResponse(dataResp) || "(Không có nội dung trả lời)"
+      const data = (await response.json()) as ClaudeResponse
+      const responseText = extractTextFromResponse(data)
 
-      setMessages((m) => [
-        ...m,
-        { id: `assistant-${Date.now()}`, role: "assistant", text: reply },
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          text: responseText,
+        },
       ])
-    } catch (err) {
-      setError(getErrorMessage(err))
+    } catch (sendError) {
+      setError(getErrorMessage(sendError))
     } finally {
       setIsSending(false)
     }
@@ -222,18 +232,16 @@ export default function GeminiPage() {
             <div className="flex items-center gap-2">
               <Sparkles className="text-primary size-5" />
               <span className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em]">
-                Claude Proxy
+                Claude Code Proxy
               </span>
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                Claude Chat
+                Claude Code Chat
               </h1>
               <p className="text-muted-foreground mt-2 max-w-2xl text-sm md:text-base">
-                Giao diện chat qua proxy (https://api.nkq.vn). Sử dụng
-                `react-hook-form` cho input và gửi tới Claude thông qua proxy.
-                Cấu hình API key bằng `NEXT_PUBLIC_CLAUDE_API_KEY` hoặc
-                `CLAUDE_API_KEY`.
+                Chat với Claude Code thông qua proxy API. Gửi các yêu cầu và
+                nhận phản hồi từ Claude Sonnet 4.6.
               </p>
             </div>
           </div>
@@ -243,7 +251,7 @@ export default function GeminiPage() {
               Model: claude-sonnet-4-6
             </div>
             <div className="bg-background/80 border text-muted-foreground rounded-full px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
-              Backend: Claude Proxy
+              Proxy: api.nkq.vn
             </div>
             <Button
               variant="outline"
@@ -262,41 +270,74 @@ export default function GeminiPage() {
             <CardHeader>
               <CardTitle>Hướng dẫn nhanh</CardTitle>
               <CardDescription>
-                Dùng các prompt mẫu bên dưới để thử luồng chat hoặc nhập câu hỏi
+                Dùng các prompt mẫu bên dưới để thử luồng chat hoặc nhập yêu cầu
                 riêng của bạn.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3">
-                {suggestedPrompts.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => void handleSend({ prompt: p })}
-                    className="text-muted-foreground text-left text-sm hover:text-foreground"
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                {suggestedPrompts.map((prompt) => (
+                  <Button
+                    key={prompt}
+                    type="button"
+                    variant="secondary"
+                    className="h-auto w-full justify-start whitespace-normal p-3 text-left"
+                    onClick={() => setInput(prompt)}
                   >
-                    • {p}
-                  </button>
+                    {prompt}
+                  </Button>
                 ))}
+              </div>
+
+              <div className="bg-muted/60 text-muted-foreground rounded-2xl border p-4 text-sm leading-6">
+                <p className="font-medium text-foreground">
+                  Cấu hình cần thiết
+                </p>
+                <p className="mt-2">
+                  Thêm biến môi trường `NEXT_PUBLIC_CLAUDE_API_KEY` hoặc
+                  `CLAUDE_API_KEY` vào `.env.local` để kết nối với proxy API.
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 bg-background/85 shadow-lg backdrop-blur">
-            <CardContent>
-              <div className="min-h-[360px] px-4 md:px-6">
-                <div className="flex max-h-[56vh] flex-col gap-4 overflow-auto py-4">
-                  {messages.map((m) => (
-                    <MessageBubble key={m.id} message={m} />
+          <Card className="border-border/60 bg-background/85 flex min-h-[72vh] flex-col shadow-lg backdrop-blur">
+            <CardHeader className="space-y-3 border-b">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Conversation</CardTitle>
+                  <CardDescription>
+                    Nhập tin nhắn mới bên dưới. Enter để gửi, Shift + Enter để
+                    xuống dòng.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+                  <div
+                    className={cn(
+                      "size-2 rounded-full",
+                      isSending ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                  />
+                  {isSending ? "Đang trả lời" : "Sẵn sàng"}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-0">
+              <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <MessageBubble key={message.id} message={message} />
                   ))}
 
                   {isSending ? (
-                    <div className="flex gap-3 justify-start">
+                    <div className="flex justify-start gap-3">
                       <div className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
                         <Bot className="size-4" />
                       </div>
                       <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-2xl rounded-bl-md px-4 py-3 text-sm">
                         <Loader2 className="size-4 animate-spin" />
-                        Claude đang suy nghĩ...
+                        Claude Code đang suy nghĩ...
                       </div>
                     </div>
                   ) : null}
@@ -314,29 +355,27 @@ export default function GeminiPage() {
                   </div>
                 ) : null}
 
-                <form
-                  onSubmit={handleSubmit(handleSend)}
-                  className="rounded-3xl border bg-background p-3 shadow-sm"
-                >
+                <div className="rounded-3xl border bg-background p-3 shadow-sm">
                   <Textarea
-                    placeholder="Nhập câu hỏi cho Claude..."
-                    className="min-h-28 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0"
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault()
-                        void handleSubmit(handleSend)()
+                        void handleSend()
                       }
                     }}
-                    {...register("prompt")}
+                    placeholder="Nhập yêu cầu cho Claude Code..."
+                    className="min-h-28 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0"
                   />
 
                   <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
                     <p className="text-muted-foreground text-xs">
-                      Dựa trên `claude-sonnet-4-6` qua proxy.
+                      Dựa trên Claude Sonnet 4.6 từ proxy API.
                     </p>
                     <Button
-                      type="submit"
-                      disabled={!watchPrompt?.trim() || isSending}
+                      onClick={() => void handleSend()}
+                      disabled={!input.trim() || isSending}
                       className="gap-2"
                     >
                       {isSending ? (
@@ -347,7 +386,7 @@ export default function GeminiPage() {
                       Gửi
                     </Button>
                   </div>
-                </form>
+                </div>
               </div>
             </CardContent>
           </Card>

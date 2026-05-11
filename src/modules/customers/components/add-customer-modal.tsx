@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus } from "lucide-react"
 import { z } from "zod"
 
@@ -24,7 +26,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-import { customerStatuses, customerTypes } from "@/modules/customers/services/customer-mock-data"
+import {
+  customerStatuses,
+  customerTypes,
+} from "@/modules/customers/services/customer-mock-data"
 import type { Customer } from "@/modules/customers/services/types/customer-types"
 
 const customerFormSchema = z.object({
@@ -45,76 +50,22 @@ interface AddCustomerModalProps {
   trigger?: React.ReactNode
 }
 
-export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalProps) {
+export function AddCustomerModal({
+  onAddCustomer,
+  trigger,
+}: AddCustomerModalProps) {
   const [open, setOpen] = useState(false)
-  const [formData, setFormData] = useState<CustomerFormData>({
-    name: "",
-    email: "",
-    phone: "",
-    company: "",
-    status: "lead",
-    customerType: "individual",
-    address: "",
-    notes: "",
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const generateCustomerId = () => {
-    const prefix = "CUST"
-    const number = Math.floor(Math.random() * 9999) + 1000
-    return `${prefix}-${number}`
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    try {
-      const validatedData = customerFormSchema.parse(formData)
-
-      const newCustomer: Customer = {
-        id: generateCustomerId(),
-        name: validatedData.name,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        company: validatedData.company,
-        status: validatedData.status,
-        customerType: validatedData.customerType,
-        address: validatedData.address,
-        notes: validatedData.notes,
-        totalSpent: 0,
-        lastContact: new Date().toISOString().split("T")[0],
-        createdAt: new Date().toISOString().split("T")[0],
-      }
-
-      onAddCustomer?.(newCustomer)
-
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        company: "",
-        status: "lead",
-        customerType: "individual",
-        address: "",
-        notes: "",
-      })
-      setErrors({})
-      setOpen(false)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {}
-        error.issues.forEach((issue) => {
-          if (issue.path[0]) {
-            newErrors[issue.path[0] as string] = issue.message
-          }
-        })
-        setErrors(newErrors)
-      }
-    }
-  }
-
-  const handleCancel = () => {
-    setFormData({
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<CustomerFormData>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
       name: "",
       email: "",
       phone: "",
@@ -123,8 +74,38 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
       customerType: "individual",
       address: "",
       notes: "",
-    })
-    setErrors({})
+    },
+  })
+
+  const generateCustomerId = () => {
+    const prefix = "CUST"
+    const number = Math.floor(Math.random() * 9999) + 1000
+    return `${prefix}-${number}`
+  }
+
+  const onSubmit = (data: CustomerFormData) => {
+    const newCustomer: Customer = {
+      id: generateCustomerId(),
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company: data.company,
+      status: data.status,
+      customerType: data.customerType,
+      address: data.address,
+      notes: data.notes,
+      totalSpent: 0,
+      lastContact: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString().split("T")[0],
+    }
+
+    onAddCustomer?.(newCustomer)
+    reset()
+    setOpen(false)
+  }
+
+  const handleCancel = () => {
+    reset()
     setOpen(false)
   }
 
@@ -138,7 +119,7 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-150">
         <DialogHeader>
           <DialogTitle>Add New Customer</DialogTitle>
           <DialogDescription>
@@ -146,7 +127,7 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Name and Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -154,12 +135,13 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
               <Input
                 id="name"
                 placeholder="Enter customer name..."
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                {...register("name")}
                 className={errors.name ? "border-red-500" : ""}
               />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name}</p>
+              {errors.name?.message && (
+                <p className="text-sm text-red-500">
+                  {String(errors.name.message)}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -168,12 +150,13 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
                 id="email"
                 type="email"
                 placeholder="customer@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                {...register("email")}
                 className={errors.email ? "border-red-500" : ""}
               />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email}</p>
+              {errors.email?.message && (
+                <p className="text-sm text-red-500">
+                  {String(errors.email.message)}
+                </p>
               )}
             </div>
           </div>
@@ -185,8 +168,7 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
               <Input
                 id="phone"
                 placeholder="0912 345 678"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                {...register("phone")}
               />
             </div>
             <div className="space-y-2">
@@ -194,8 +176,7 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
               <Input
                 id="company"
                 placeholder="Company name..."
-                value={formData.company}
-                onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                {...register("company")}
               />
             </div>
           </div>
@@ -204,39 +185,45 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerStatuses.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="customerType">Customer Type</Label>
-              <Select
-                value={formData.customerType}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, customerType: value }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="customerType"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 
@@ -246,8 +233,7 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
             <Input
               id="address"
               placeholder="123 Street, District, City"
-              value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              {...register("address")}
             />
           </div>
 
@@ -257,18 +243,26 @@ export function AddCustomerModal({ onAddCustomer, trigger }: AddCustomerModalPro
             <Textarea
               id="notes"
               placeholder="Additional notes about this customer..."
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              {...register("notes")}
               rows={3}
             />
           </div>
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={handleCancel} className="cursor-pointer">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              className="cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button type="submit" className="cursor-pointer">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="cursor-pointer"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Create Customer
             </Button>

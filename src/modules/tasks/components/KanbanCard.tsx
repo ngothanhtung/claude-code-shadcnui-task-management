@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
 import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
+import { taskFormSchema } from "@/modules/tasks/services/types/task-types"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
 interface KanbanCardProps {
@@ -91,12 +92,20 @@ export function KanbanCard({ task, isDragging, onUpdate, onDelete }: KanbanCardP
   }
 
   const handleSave = async () => {
+    const parsed = taskFormSchema.safeParse(editData)
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map(i => i.message)
+      toast.error(issues[0] ?? "Invalid form data")
+      return
+    }
+
     setSubmitting(true)
     const updated: Task = { ...task, ...editData, updatedAt: new Date().toISOString() }
     try {
       await onUpdate?.(updated)
       setEditOpen(false)
-    } catch {
+    } catch (err) {
+      console.error("Failed to save task:", err)
       // Error toast handled by useTasks
     } finally {
       setSubmitting(false)

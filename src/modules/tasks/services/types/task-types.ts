@@ -3,6 +3,17 @@ import { z } from "zod"
 export const taskPrioritySchema = z.enum(["low", "medium", "high"])
 export const taskStatusSchema = z.enum(["todo", "in-progress", "done"])
 
+export const taskFormSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().optional(),
+  status: taskStatusSchema,
+  priority: taskPrioritySchema,
+  assigneeId: z.string().optional(),
+  dueDate: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+})
+export type TaskFormData = z.infer<typeof taskFormSchema>
+
 export const attachmentSchema = z.object({
   id: z.string(),
   fileName: z.string(),

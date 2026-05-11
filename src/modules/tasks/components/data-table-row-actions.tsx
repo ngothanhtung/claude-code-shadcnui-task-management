@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { auth } from "@/lib/firebase/client"
 import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
+import { taskFormSchema } from "@/modules/tasks/services/types/task-types"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 import {
   UploadDialog,
@@ -71,6 +72,13 @@ export function DataTableRowActions({
   }
 
   const handleEdit = async () => {
+    const parsed = taskFormSchema.safeParse(editData)
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map(i => i.message)
+      toast.error(issues[0] ?? "Invalid form data")
+      return
+    }
+
     setSubmitting(true)
     const updated: Task = {
       ...task,
@@ -81,7 +89,8 @@ export function DataTableRowActions({
       await onUpdate?.(updated)
       setEditData(updated)
       setEditOpen(false)
-    } catch {
+    } catch (err) {
+      console.error("Failed to save task:", err)
       // Error toast is handled by useTasks; keep dialog open so user can retry
     } finally {
       setSubmitting(false)

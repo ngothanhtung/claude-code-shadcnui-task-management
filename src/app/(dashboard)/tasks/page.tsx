@@ -1,10 +1,24 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { ArrowUp, BarChart3, CheckCircle2, Clock, LayoutGrid, List, ListTodo } from "lucide-react"
+import {
+  ArrowUp,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  LayoutGrid,
+  List,
+  ListTodo,
+} from "lucide-react"
 import { Suspense } from "react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 import { AddTaskModal } from "@/modules/tasks/components/add-task-modal"
 import { KanbanBoard } from "@/modules/tasks/components/KanbanBoard"
@@ -17,12 +31,25 @@ function TasksContent() {
   const searchParams = useSearchParams()
   const view = (searchParams.get("view") as "list" | "kanban") ?? "list"
 
-  const { tasks, loading, addTask, deleteTask, updateTask, moveTask, restoreTask, groupedTasks } = useTasks()
+  const {
+    tasks,
+    loading,
+    addTask,
+    deleteTask,
+    updateTask,
+    moveTask,
+    restoreTask,
+    groupedTasks,
+  } = useTasks()
 
   const stats = getTaskStats(tasks)
   const columns = getColumns({ onDelete: deleteTask, onUpdate: updateTask })
 
-  const handleMoveTask = (taskId: string, toStatus: Parameters<typeof moveTask>[1], newOrder: number) => {
+  const handleMoveTask = (
+    taskId: string,
+    toStatus: Parameters<typeof moveTask>[1],
+    newOrder: number
+  ) => {
     moveTask(taskId, toStatus, newOrder, tasks)
   }
 
@@ -69,12 +96,17 @@ function TasksContent() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">Total Tasks</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Total Tasks
+                  </p>
                   <div className="mt-1 flex items-baseline gap-2">
                     <span className="text-2xl font-bold">{stats.total}</span>
                     <span className="flex items-center gap-0.5 text-sm text-green-500">
                       <ArrowUp className="size-3.5" />
-                      {stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0}%
+                      {stats.total > 0
+                        ? Math.round((stats.done / stats.total) * 100)
+                        : 0}
+                      %
                     </span>
                   </div>
                 </div>
@@ -89,7 +121,9 @@ function TasksContent() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">Done</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Done
+                  </p>
                   <div className="mt-1 flex items-baseline gap-2">
                     <span className="text-2xl font-bold">{stats.done}</span>
                     <span className="flex items-center gap-0.5 text-sm text-green-500">
@@ -109,9 +143,13 @@ function TasksContent() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">In Progress</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    In Progress
+                  </p>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{stats.inProgress}</span>
+                    <span className="text-2xl font-bold">
+                      {stats.inProgress}
+                    </span>
                     <span className="flex items-center gap-0.5 text-sm text-green-500">
                       <ArrowUp className="size-3.5" />
                       {Math.round((stats.inProgress / stats.total) * 100)}%
@@ -129,7 +167,9 @@ function TasksContent() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">To Do</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    To Do
+                  </p>
                   <div className="mt-1 flex items-baseline gap-2">
                     <span className="text-2xl font-bold">{stats.todo}</span>
                     <span className="flex items-center gap-0.5 text-sm text-orange-500">
@@ -186,7 +226,7 @@ function TasksContent() {
 
           <CardContent>
             {view === "kanban" ? (
-              <div className="h-[calc(100vh-22rem)] min-h-[400px]">
+              <div className="h-[calc(100vh-22rem)] min-h-100">
                 <KanbanBoard
                   tasks={tasks}
                   groupedTasks={groupedTasks}
