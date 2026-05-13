@@ -12,7 +12,9 @@ export const taskFormSchema = z.object({
   dueDate: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
+
 export type TaskFormData = z.infer<typeof taskFormSchema>
+export type TaskFormDataInput = z.input<typeof taskFormSchema>
 
 export const attachmentSchema = z.object({
   id: z.string(),

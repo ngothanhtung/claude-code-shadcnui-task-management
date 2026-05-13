@@ -1,6 +1,8 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import type { Row } from "@tanstack/react-table"
 import { MoreHorizontal, Paperclip, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -34,7 +36,10 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { auth } from "@/lib/firebase/client"
 import { priorities, statuses, tags } from "@/modules/tasks/services/task-mock-data"
-import { taskFormSchema } from "@/modules/tasks/services/types/task-types"
+import {
+  taskFormSchema,
+  type TaskFormDataInput,
+} from "@/modules/tasks/services/types/task-types"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 import {
   UploadDialog,
@@ -47,20 +52,58 @@ interface DataTableRowActionsProps {
   onUpdate?: (task: Task) => Promise<void>
 }
 
+function toDateInputValue(value: Task["dueDate"]): string {
+  if (!value) return ""
+  const iso = new Date(value).toISOString()
+  return iso.split("T")[0]
+}
+
 export function DataTableRowActions({
   row,
   onDelete,
   onUpdate,
 }: DataTableRowActionsProps) {
   const task = row.original
-  const now = new Date().toISOString()
 
   const [editOpen, setEditOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [editData, setEditData] = useState<Task>(task)
   const uploadDialogRef = useRef<UploadDialogHandle>(null)
 
   const userId = auth.currentUser?.uid ?? "anonymous"
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<TaskFormDataInput>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      title: task.title,
+      description: task.description ?? "",
+      status: task.status,
+      priority: task.priority,
+      assigneeId: task.assigneeId ?? "",
+      dueDate: toDateInputValue(task.dueDate),
+      tags: task.tags ?? [],
+    },
+  })
+
+  useEffect(() => {
+    if (editOpen) {
+      reset({
+        title: task.title,
+        description: task.description ?? "",
+        status: task.status,
+        priority: task.priority,
+        assigneeId: task.assigneeId ?? "",
+        dueDate: toDateInputValue(task.dueDate),
+        tags: task.tags ?? [],
+      })
+    }
+  }, [editOpen, task, reset])
 
   const handleDelete = async () => {
     try {
@@ -71,41 +114,32 @@ export function DataTableRowActions({
     }
   }
 
-  const handleEdit = async () => {
-    const parsed = taskFormSchema.safeParse(editData)
-    if (!parsed.success) {
-      const issues = parsed.error.issues.map(i => i.message)
-      toast.error(issues[0] ?? "Invalid form data")
-      return
-    }
-
-    setSubmitting(true)
+  const onSubmit = async (data: TaskFormDataInput) => {
     const updated: Task = {
       ...task,
-      ...editData,
-      updatedAt: now,
+      title: data.title,
+      description: data.description ?? "",
+      status: data.status,
+      priority: data.priority,
+      assigneeId: data.assigneeId || undefined,
+      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
+      tags: data.tags ?? [],
+      updatedAt: new Date().toISOString(),
     }
+
     try {
       await onUpdate?.(updated)
-      setEditData(updated)
       setEditOpen(false)
     } catch (err) {
       console.error("Failed to save task:", err)
       // Error toast is handled by useTasks; keep dialog open so user can retry
-    } finally {
-      setSubmitting(false)
     }
   }
 
   const toggleTag = (tagValue: string) => {
-    setEditData((prev) => {
-      const current = prev.tags ?? []
-      const exists = current.includes(tagValue)
-      return {
-        ...prev,
-        tags: exists ? current.filter((t) => t !== tagValue) : [...current, tagValue],
-      }
-    })
+    const current: string[] = watch("tags") ?? []
+    const exists = current.includes(tagValue)
+    setValue("tags", exists ? current.filter((t) => t !== tagValue) : [...current, tagValue])
   }
 
   return (
@@ -123,10 +157,7 @@ export function DataTableRowActions({
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem
             className="cursor-pointer"
-            onClick={() => {
-              setEditData(task)
-              setEditOpen(true)
-            }}
+            onClick={() => setEditOpen(true)}
           >
             <Pencil className="mr-2 h-4 w-4" />
             Edit
@@ -164,111 +195,93 @@ export function DataTableRowActions({
               Update task details. Click save when you are done.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-title">Title</Label>
+              <Label htmlFor="edit-title">Title *</Label>
               <Input
                 id="edit-title"
-                value={editData.title}
-                onChange={(e) =>
-                  setEditData((prev) => ({ ...prev, title: e.target.value }))
-                }
+                {...register("title")}
+                className={errors.title ? "border-red-500" : ""}
               />
+              {errors.title?.message && (
+                <p className="text-sm text-red-500">{String(errors.title.message)}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="edit-description">Description</Label>
               <Textarea
                 id="edit-description"
-                value={editData.description ?? ""}
-                onChange={(e) =>
-                  setEditData((prev) => ({ ...prev, description: e.target.value || undefined }))
-                }
+                {...register("description")}
+                className={errors.description ? "border-red-500" : ""}
                 rows={2}
               />
+              {errors.description?.message && (
+                <p className="text-sm text-red-500">{String(errors.description.message)}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
-                  value={editData.status}
-                  onValueChange={(value) =>
-                    setEditData((prev) => ({ ...prev, status: value as Task["status"] }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        <div className="flex items-center">
-                          {s.icon && <s.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
-                          {s.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            <div className="flex items-center">
+                              {s.icon && <s.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                              {s.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Priority</Label>
-                <Select
-                  value={editData.priority}
-                  onValueChange={(value) =>
-                    setEditData((prev) => ({ ...prev, priority: value as Task["priority"] }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorities.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>
-                        <div className="flex items-center">
-                          {p.icon && <p.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
-                          {p.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="priority"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorities.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            <div className="flex items-center">
+                              {p.icon && <p.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                              {p.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-assigneeId">Assignee ID</Label>
-                <Input
-                  id="edit-assigneeId"
-                  className="w-full"
-                  value={editData.assigneeId ?? ""}
-                  onChange={(e) =>
-                    setEditData((prev) => ({ ...prev, assigneeId: e.target.value || undefined }))
-                  }
-                />
+                <Input id="edit-assigneeId" className="w-full" {...register("assigneeId")} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-dueDate">Due Date</Label>
-                <Input
-                  id="edit-dueDate"
-                  className="w-full"
-                  type="date"
-                  value={
-                    editData.dueDate
-                      ? new Date(editData.dueDate).toISOString().split("T")[0]
-                      : ""
-                  }
-                  onChange={(e) =>
-                    setEditData((prev) => ({
-                      ...prev,
-                      dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
-                    }))
-                  }
-                />
+                <Input id="edit-dueDate" className="w-full" type="date" {...register("dueDate")} />
               </div>
             </div>
 
@@ -276,7 +289,7 @@ export function DataTableRowActions({
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => {
-                  const selected = editData.tags?.includes(tag.value) ?? false
+                  const selected = (watch("tags") ?? []).includes(tag.value)
                   return (
                     <Button
                       key={tag.value}
@@ -292,15 +305,21 @@ export function DataTableRowActions({
                 })}
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)} className="cursor-pointer">
-              Cancel
-            </Button>
-            <Button onClick={handleEdit} disabled={submitting} className="cursor-pointer">
-              {submitting ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                className="cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>

@@ -33,6 +33,7 @@ import {
 import {
   taskFormSchema,
   type TaskFormData,
+  type TaskFormDataInput,
 } from "@/modules/tasks/services/types/task-types"
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
@@ -43,11 +44,11 @@ interface AddTaskModalProps {
   defaultOrder?: number
 }
 
-const defaultFormData: TaskFormData = {
+const defaultFormData = {
   title: "",
   description: "",
-  status: "todo",
-  priority: "medium",
+  status: "todo" as const,
+  priority: "medium" as const,
   assigneeId: "",
   dueDate: "",
   tags: [],
@@ -69,7 +70,7 @@ export function AddTaskModal({
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<TaskFormData>({
+  } = useForm<TaskFormDataInput>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
       ...defaultFormData,
@@ -81,17 +82,17 @@ export function AddTaskModal({
     const number = Math.floor(Math.random() * 9000) + 1000
     return `TASK-${number}`
   }
-  const onSubmit = async (data: TaskFormData) => {
+  const onSubmit = async (data: TaskFormDataInput) => {
     const now = new Date().toISOString()
     const newTask: Task = {
       id: generateTaskId(),
       title: data.title,
-      description: data.description,
+      description: data.description ?? "",
       status: data.status,
       priority: data.priority,
       assigneeId: data.assigneeId || undefined,
       dueDate: data.dueDate || undefined,
-      tags: data.tags || [],
+      tags: data.tags ?? [],
       attachments: [],
       order: defaultOrder,
       createdAt: now,
@@ -169,8 +170,12 @@ export function AddTaskModal({
               id="description"
               placeholder="Provide additional details about the task..."
               {...register("description")}
+              className={errors.description ? "border-red-500" : ""}
               rows={3}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500">{String(errors.description.message)}</p>
+            )}
           </div>
 
           {/* Status and Priority */}
